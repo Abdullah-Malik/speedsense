@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Data Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+</head>
+<body>
+    <h1>Sensor Data Viewer</h1>
+
+    <form id="timestamp-form">
+        <label for="start-timestamp">Start Timestamp:</label>
+        <input type="datetime-local" id="start-timestamp" name="start-timestamp" required>
+        <label for="end-timestamp">End Timestamp:</label>
+        <input type="datetime-local" id="end-timestamp" name="end-timestamp" required>
+        <button type="submit">Fetch Data</button>
+    </form>
+
+    <div>
+        <h2>Accelerometer Data</h2>
+        <canvas id="accelerometerChart"></canvas>
+    </div>
+    <div>
+        <h2>Gyroscope Data</h2>
+        <canvas id="gyroscopeChart"></canvas>
+    </div>
+
+    <script>
+        const accelerometerChartCtx = document.getElementById('accelerometerChart').getContext('2d');
+        const gyroscopeChartCtx = document.getElementById('gyroscopeChart').getContext('2d');
+
+        const createChart = (ctx, title) => {
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [], // X-axis labels (ID or timestamp)
+                    datasets: [
+                        {
+                            label: 'X',
+                            data: [],
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Y',
+                            data: [],
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Z',
+                            data: [],
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Magnitude',
+                            data: [],
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Peaks',
+                            data: [], // Peak markers
+                            type: 'scatter',
+                            borderColor: 'rgba(255, 206, 86, 1)',
+                            backgroundColor: 'rgba(255, 206, 86, 1)',
+                            pointRadius: 5,
+                            showLine: false // Only show points, not lines
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: true, position: 'top' },
+                        tooltip: { mode: 'index', intersect: false },
+                        zoom: {
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                        }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'ID' } },
+                        y: { title: { display: true, text: 'Values' }, beginAtZero: true }
+                    }
+                }
+            });
+        };
+
+        const accelerometerChart = createChart(accelerometerChartCtx, 'Accelerometer Data');
+        const gyroscopeChart = createChart(gyroscopeChartCtx, 'Gyroscope Data');
+
+        document.getElementById('timestamp-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const startTimestamp = new Date(document.getElementById('start-timestamp').value).toISOString();
+            const endTimestamp = new Date(document.getElementById('end-timestamp').value).toISOString();
+
+            // Fetch data from the backend
+            const response = await fetch(`/get-data-between?start=${startTimestamp}&end=${endTimestamp}`);
+            const data = await response.json();
+
+            // Update accelerometer chart
+            const accelerometerData = data.accelerometer_data;
+
+            // Ensure all datasets (X, Y, Z, Magnitude, Peaks) are updated
+            accelerometerChart.data.labels = accelerometerData.map((d) => d.id);
+            accelerometerChart.data.datasets[0].data = accelerometerData.map((d) => d.x); // X-axis data
+            accelerometerChart.data.datasets[1].data = accelerometerData.map((d) => d.y); // Y-axis data
+            accelerometerChart.data.datasets[2].data = accelerometerData.map((d) => d.z); // Z-axis data
+            accelerometerChart.data.datasets[3].data = accelerometerData.map((d) => d.magnitude); // Magnitude
+
+            // Add peaks to the chart
+            const peaks = data.accelerometer_peaks;
+            accelerometerChart.data.datasets[4].data = peaks.map((peak) => ({
+                x: peak.id, // Use ID for the X-axis
+                y: peak.magnitude // Magnitude for the Y-axis
+            }));
+
+            accelerometerChart.update();
+
+            // Update gyroscope chart
+            const gyroscopeData = data.gyroscope_data;
+            gyroscopeChart.data.labels = gyroscopeData.map((d) => d.id);
+            gyroscopeChart.data.datasets[0].data = gyroscopeData.map((d) => d.x);
+            gyroscopeChart.data.datasets[1].data = gyroscopeData.map((d) => d.y);
+            gyroscopeChart.data.datasets[2].data = gyroscopeData.map((d) => d.z);
+            gyroscopeChart.data.datasets[3].data = gyroscopeData.map((d) => d.magnitude);
+            gyroscopeChart.update();
+        });
+    </script>
+</body>
+</html>
