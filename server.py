@@ -191,7 +191,11 @@ def get_data_between():
         # Detect peaks in accelerometer magnitudes
         peaks, properties = find_peaks(accelerometer_magnitudes, height=10)
 
-        peak_data = []
+        speed_data = [
+            {"id": record.id, "speed": 0}
+            for record in accelerometer_data
+        ]
+
 
         for peak in peaks:
             speed = 0
@@ -199,16 +203,12 @@ def get_data_between():
             while accelerometer_magnitudes[i] > 0.5 and i > 0:
                 speed += accelerometer_magnitudes[i] * (0.01)
                 i -= 1
-            peak_data.append({
-                "id": accelerometer_ids[peak],
-                "magnitude": accelerometer_magnitudes[peak],
-                "speed": speed
-                })
+            speed_data[peak]["speed"] = speed
 
         return jsonify({
             "accelerometer_data": accelerometer_data_list,
             "gyroscope_data": gyroscope_data_list,
-            "accelerometer_peaks": peak_data
+            "speed_data": speed_data
         }), 200
 
     except Exception as e:

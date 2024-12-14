@@ -26,55 +26,22 @@
         <h2>Gyroscope Data</h2>
         <canvas id="gyroscopeChart"></canvas>
     </div>
+    <div>
+        <h2>Speed Data</h2>
+        <canvas id="speedChart"></canvas>
+    </div>
 
     <script>
         const accelerometerChartCtx = document.getElementById('accelerometerChart').getContext('2d');
         const gyroscopeChartCtx = document.getElementById('gyroscopeChart').getContext('2d');
+        const speedChartCtx = document.getElementById('speedChart').getContext('2d');
 
-        const createChart = (ctx, title) => {
+        const createChart = (ctx, title, yLabel) => {
             return new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: [], // X-axis labels (ID or timestamp)
-                    datasets: [
-                        {
-                            label: 'X',
-                            data: [],
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Y',
-                            data: [],
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Z',
-                            data: [],
-                            borderColor: 'rgba(75, 192, 192, 1)',
-                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Magnitude',
-                            data: [],
-                            borderColor: 'rgba(153, 102, 255, 1)',
-                            backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Peaks',
-                            data: [], // Peak markers
-                            type: 'scatter',
-                            borderColor: 'rgba(255, 206, 86, 1)',
-                            backgroundColor: 'rgba(255, 206, 86, 1)',
-                            pointRadius: 5,
-                            showLine: false // Only show points, not lines
-                        }
-                    ]
+                    datasets: []
                 },
                 options: {
                     responsive: true,
@@ -88,14 +55,15 @@
                     },
                     scales: {
                         x: { title: { display: true, text: 'ID' } },
-                        y: { title: { display: true, text: 'Values' }, beginAtZero: true }
+                        y: { title: { display: true, text: yLabel }, beginAtZero: true }
                     }
                 }
             });
         };
 
-        const accelerometerChart = createChart(accelerometerChartCtx, 'Accelerometer Data');
-        const gyroscopeChart = createChart(gyroscopeChartCtx, 'Gyroscope Data');
+        const accelerometerChart = createChart(accelerometerChartCtx, 'Accelerometer Data', 'Values');
+        const gyroscopeChart = createChart(gyroscopeChartCtx, 'Gyroscope Data', 'Values');
+        const speedChart = createChart(speedChartCtx, 'Speed Data', 'Speed');
 
         document.getElementById('timestamp-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -106,32 +74,34 @@
             const response = await fetch(`/get-data-between?start=${startTimestamp}&end=${endTimestamp}`);
             const data = await response.json();
 
+            const speedData = data.speed_data;
+            speedChart.data.labels = speedData.map((d) => d.id);
+            speedChart.data.datasets = [
+                { label: 'Speed', data: speedData.map((d) => d.speed), borderColor: 'rgba(255, 206, 86, 1)', backgroundColor: 'rgba(255, 206, 86, 0.2)', borderWidth: 1 }
+            ];
+            speedChart.update();
+
             // Update accelerometer chart
             const accelerometerData = data.accelerometer_data;
-
-            // Ensure all datasets (X, Y, Z, Magnitude, Peaks) are updated
             accelerometerChart.data.labels = accelerometerData.map((d) => d.id);
-            accelerometerChart.data.datasets[0].data = accelerometerData.map((d) => d.x); // X-axis data
-            accelerometerChart.data.datasets[1].data = accelerometerData.map((d) => d.y); // Y-axis data
-            accelerometerChart.data.datasets[2].data = accelerometerData.map((d) => d.z); // Z-axis data
-            accelerometerChart.data.datasets[3].data = accelerometerData.map((d) => d.magnitude); // Magnitude
-
-            // Add peaks to the chart
-            const peaks = data.accelerometer_peaks;
-            accelerometerChart.data.datasets[4].data = peaks.map((peak) => ({
-                x: peak.id, // Use ID for the X-axis
-                y: peak.magnitude // Magnitude for the Y-axis
-            }));
-
+            accelerometerChart.data.datasets = [
+                { label: 'X', data: accelerometerData.map((d) => d.x), borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)', borderWidth: 1 },
+                { label: 'Y', data: accelerometerData.map((d) => d.y), borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)', borderWidth: 1 },
+                { label: 'Z', data: accelerometerData.map((d) => d.z), borderColor: 'rgba(75, 192, 192, 1)', backgroundColor: 'rgba(75, 192, 192, 0.2)', borderWidth: 1 },
+                { label: 'Magnitude', data: accelerometerData.map((d) => d.magnitude), borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.2)', borderWidth: 1 },
+                { label: 'Speed', data: speedData.map((d) => d.speed), borderColor: 'rgba(255, 206, 86, 1)', backgroundColor: 'rgba(255, 206, 86, 0.2)', borderWidth: 1 }
+            ];
             accelerometerChart.update();
 
             // Update gyroscope chart
             const gyroscopeData = data.gyroscope_data;
             gyroscopeChart.data.labels = gyroscopeData.map((d) => d.id);
-            gyroscopeChart.data.datasets[0].data = gyroscopeData.map((d) => d.x);
-            gyroscopeChart.data.datasets[1].data = gyroscopeData.map((d) => d.y);
-            gyroscopeChart.data.datasets[2].data = gyroscopeData.map((d) => d.z);
-            gyroscopeChart.data.datasets[3].data = gyroscopeData.map((d) => d.magnitude);
+            gyroscopeChart.data.datasets = [
+                { label: 'X', data: gyroscopeData.map((d) => d.x), borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)', borderWidth: 1 },
+                { label: 'Y', data: gyroscopeData.map((d) => d.y), borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)', borderWidth: 1 },
+                { label: 'Z', data: gyroscopeData.map((d) => d.z), borderColor: 'rgba(75, 192, 192, 1)', backgroundColor: 'rgba(75, 192, 192, 0.2)', borderWidth: 1 },
+                { label: 'Magnitude', data: gyroscopeData.map((d) => d.magnitude), borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.2)', borderWidth: 1 }
+            ];
             gyroscopeChart.update();
         });
     </script>
